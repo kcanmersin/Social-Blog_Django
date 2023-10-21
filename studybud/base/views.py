@@ -7,18 +7,20 @@ from django.contrib.auth import authenticate, login, logout
 from .models import Room, Topic, Message, User
 from .forms import RoomForm, UserForm, MyUserCreationForm
 
-# Import necessary modules and models
+# Create your views here.
 
-# View functions
+# rooms = [
+#     {'id': 1, 'name': 'Lets learn python!'},
+#     {'id': 2, 'name': 'Design with me'},
+#     {'id': 3, 'name': 'Frontend developers'},
+# ]
 
-# Login Page
+
 def loginPage(request):
     page = 'login'
-    # Check if the user is already authenticated, if yes, redirect to the home page
     if request.user.is_authenticated:
         return redirect('home')
 
-    # Process the POST request for user login
     if request.method == 'POST':
         email = request.POST.get('email').lower()
         password = request.POST.get('password')
@@ -34,24 +36,23 @@ def loginPage(request):
             login(request, user)
             return redirect('home')
         else:
-            messages.error(request, 'Username OR password does not exist')
+            messages.error(request, 'Username OR password does not exit')
 
     context = {'page': page}
     return render(request, 'base/login_register.html', context)
 
-# Logout User
+
 def logoutUser(request):
     logout(request)
     return redirect('home')
 
-# Register Page
+
 def registerPage(request):
     form = MyUserCreationForm()
 
-    # Process the POST request for user registration
     if request.method == 'POST':
         form = MyUserCreationForm(request.POST)
-        if form.isvalid():
+        if form.is_valid():
             user = form.save(commit=False)
             user.username = user.username.lower()
             user.save()
@@ -62,18 +63,16 @@ def registerPage(request):
 
     return render(request, 'base/login_register.html', {'form': form})
 
-# Home Page
+
 def home(request):
     q = request.GET.get('q') if request.GET.get('q') != None else ''
 
-    # Filter rooms based on search queries
     rooms = Room.objects.filter(
         Q(topic__name__icontains=q) |
         Q(name__icontains=q) |
         Q(description__icontains=q)
     )
 
-    # Retrieve the latest topics and a few recent room messages
     topics = Topic.objects.all()[0:5]
     room_count = rooms.count()
     room_messages = Message.objects.filter(
@@ -83,13 +82,12 @@ def home(request):
                'room_count': room_count, 'room_messages': room_messages}
     return render(request, 'base/home.html', context)
 
-# Room View
+
 def room(request, pk):
     room = Room.objects.get(id=pk)
     room_messages = room.message_set.all()
     participants = room.participants.all()
 
-    # Process POST request to send a message in the room
     if request.method == 'POST':
         message = Message.objects.create(
             user=request.user,
@@ -103,7 +101,7 @@ def room(request, pk):
                'participants': participants}
     return render(request, 'base/room.html', context)
 
-# User Profile View
+
 def userProfile(request, pk):
     user = User.objects.get(id=pk)
     rooms = user.room_set.all()
@@ -113,13 +111,11 @@ def userProfile(request, pk):
                'room_messages': room_messages, 'topics': topics}
     return render(request, 'base/profile.html', context)
 
-# Create Room View (Login Required)
+
 @login_required(login_url='login')
 def createRoom(request):
     form = RoomForm()
     topics = Topic.objects.all()
-
-    # Process POST request to create a new room
     if request.method == 'POST':
         topic_name = request.POST.get('topic')
         topic, created = Topic.objects.get_or_create(name=topic_name)
@@ -135,16 +131,14 @@ def createRoom(request):
     context = {'form': form, 'topics': topics}
     return render(request, 'base/room_form.html', context)
 
-# Update Room View (Login Required)
+
 @login_required(login_url='login')
 def updateRoom(request, pk):
     room = Room.objects.get(id=pk)
     form = RoomForm(instance=room)
     topics = Topic.objects.all()
-
-    # Process POST request to update an existing room
     if request.user != room.host:
-        return HttpResponse('You are not allowed here!!')
+        return HttpResponse('Your are not allowed here!!')
 
     if request.method == 'POST':
         topic_name = request.POST.get('topic')
@@ -158,35 +152,33 @@ def updateRoom(request, pk):
     context = {'form': form, 'topics': topics, 'room': room}
     return render(request, 'base/room_form.html', context)
 
-# Delete Room View (Login Required)
+
 @login_required(login_url='login')
 def deleteRoom(request, pk):
     room = Room.objects.get(id=pk)
 
-    # Check if the current user has the permission to delete the room
     if request.user != room.host:
-        return HttpResponse('You are not allowed here!!')
+        return HttpResponse('Your are not allowed here!!')
 
     if request.method == 'POST':
         room.delete()
         return redirect('home')
     return render(request, 'base/delete.html', {'obj': room})
 
-# Delete Message View (Login Required)
+
 @login_required(login_url='login')
 def deleteMessage(request, pk):
     message = Message.objects.get(id=pk)
 
-    # Check if the current user has the permission to delete the message
     if request.user != message.user:
-        return HttpResponse('You are not allowed here!!')
+        return HttpResponse('Your are not allowed here!!')
 
     if request.method == 'POST':
         message.delete()
         return redirect('home')
     return render(request, 'base/delete.html', {'obj': message})
 
-# Update User Profile View (Login Required)
+
 @login_required(login_url='login')
 def updateUser(request):
     user = request.user
@@ -200,13 +192,13 @@ def updateUser(request):
 
     return render(request, 'base/update-user.html', {'form': form})
 
-# Topics Page
+
 def topicsPage(request):
     q = request.GET.get('q') if request.GET.get('q') != None else ''
     topics = Topic.objects.filter(name__icontains=q)
     return render(request, 'base/topics.html', {'topics': topics})
 
-# Activity Page
+
 def activityPage(request):
     room_messages = Message.objects.all()
     return render(request, 'base/activity.html', {'room_messages': room_messages})
